@@ -2,18 +2,63 @@ const users = require("../model/schema");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
-exports.signUp = async (req, res) => {
+const nodeMailer = require("nodemailer");
+
+exports.emailValidation = async (req, res) => {
   const { email, name, password } = req.body;
+  const transporter = nodeMailer.createTransport({
+    service: "gmail",
+    auth: { user: "wajihkurousagi@gmail.com", pass: "vagm seay dcmo ltnz" },
+  });
+
   try {
-    const userFound = await users.findOne({ email });
+    const user = await users.findOne({ email });
+    if (user) {
+      res.status(400).send({ msg: "account already exists" });
+    } else {
+      const secretKey = "abc123";
+      const token = jwt.sign({ email, name, password }, secretKey, {
+        expiresIn: "7d",
+      });
+      var mailOptions = {
+        to: email,
+        html: `
+    <h1>helloo there,verify or go to hell</h1>
+    <p>again,verify by clicking ont he link,not that hard right?</p>
+    <a href="http://localholst:5000/verify/${token}">here!</a>
+    `,
+      };
+      await transporter.sendMail(mailOptions, (error) => {
+        if (error) throw error;
+      });
+      res.status(200).send({ msg: "mail verification sent " });
+    }
+  } catch (error) {
+    res
+      .status(500)
+      .send({ msg: "error while trying to send a verification mail", error });
+  }
+};
+
+exports.signUp = async (req, res) => {
+  const tokenValid = req.params.token;
+
+  try {
+    const secretKey = "abc123";
+    const decodeToken = jwt.verify(tokenValid, secretKey);
+    const userFound = await users.findOne({ email: decodeToken.email });
     if (userFound) {
       res.status(400).send({ msg: "user already exists" });
     } else {
-      const newUser = new users(req.body);
       const salt = 10;
-      const hPassword = bcrypt.hashSync(password, salt);
-      newUser.password = hPassword;
-      const secretKey = "abc123";
+      const hPassword = bcrypt.hashSync(decodeToken.password, salt);
+
+      const newUser = new users({
+        name: decodeToken.name,
+        email: decodeToken.email,
+        password: hPassword,
+      });
+
       const token = jwt.sign(
         { id: newUser._id, name: newUser.name },
         secretKey,
@@ -57,7 +102,7 @@ exports.signIn = async (req, res) => {
 exports.getCurrent = (req, res) => {
   const user = req.user;
   if (user) {
-    res.status(200).send({ msg: "connecting user", user });
+    res.status(200).send({ msg: "connected user", user });
   } else {
     res.status(400).send({ msg: "u need to login first" });
   }

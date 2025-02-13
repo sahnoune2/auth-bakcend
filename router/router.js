@@ -1,5 +1,10 @@
 const express = require("express");
-const { signUp, signIn, getCurrent } = require("../controller/control");
+const {
+  signUp,
+  signIn,
+  getCurrent,
+  emailValidation,
+} = require("../controller/control");
 const {
   signUpValidation,
   validation,
@@ -9,8 +14,9 @@ const { isAuth } = require("../middleWare/isAuth");
 
 const userRouter = express.Router();
 
-userRouter.post("/signUp", signUpValidation, validation, signUp);
+userRouter.post("/signUp/:token", signUp);
 userRouter.post("/signIn", signInValidation, validation, signIn);
 userRouter.get("/getCurrent", isAuth, getCurrent);
+userRouter.post("/email", signUpValidation, validation, emailValidation);
 
 module.exports = userRouter;
